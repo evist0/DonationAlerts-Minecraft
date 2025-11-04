@@ -11,5 +11,6 @@ pluginManagement {
 
 rootProject.name = 'Modifications'
 include 'fabric_1.20'
+include 'fabric_1.21'
 include 'DonationAlerts'
 include 'TestConsole'
