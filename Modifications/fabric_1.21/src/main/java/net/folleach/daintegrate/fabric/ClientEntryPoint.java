@@ -26,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 
@@ -56,10 +57,11 @@ public class ClientEntryPoint implements ClientModInitializer {
                 return;
             if (settings.disableSettingsUpdateMessage)
                 return;
+
             player.sendMessage(getPrefix().append("settings updated with ")
-                    .append(String.valueOf(settings.triggers == null ? 0 : settings.triggers.length))
-                    .append(" triggers")
-            );
+                            .append(String.valueOf(settings.triggers == null ? 0 : settings.triggers.length))
+                            .append(" triggers")
+                    , false);
         });
 
         var eventProcessor = new EventProcessor();
@@ -82,6 +84,11 @@ public class ClientEntryPoint implements ClientModInitializer {
             if (current == null || current.disableWelcomeMessage)
                 return;
             sendWelcomeMessage(player);
+
+            try {
+                this.connect(player);
+            } catch (Exception ignored) {
+            }
         });
     }
 
@@ -103,7 +110,7 @@ public class ClientEntryPoint implements ClientModInitializer {
     }
 
     private int statusCommand(CommandContext<FabricClientCommandSource> context) {
-        context.getSource().getPlayer().sendMessage(getPrefix().append(client.getConnected() ? "Connected" : "Not connected"));
+        context.getSource().getPlayer().sendMessage(getPrefix().append(client.getConnected() ? "Connected" : "Not connected"), false);
         return 0;
     }
 
@@ -113,6 +120,10 @@ public class ClientEntryPoint implements ClientModInitializer {
     }
 
     private int connectCommand(CommandContext<FabricClientCommandSource> context) {
+        return this.connect(context.getSource().getPlayer());
+    }
+
+    private int connect(ClientPlayerEntity player) {
         var home = System.getProperty("user.home");
         var token = "";
         try (BufferedReader br = new BufferedReader(new FileReader(new File(home, Constants.TokenFileName)))) {
@@ -121,30 +132,29 @@ public class ClientEntryPoint implements ClientModInitializer {
                 token = line.trim();
             }
         } catch (FileNotFoundException e) {
-            sendTokenNotFoundMessage(context.getSource().getPlayer());
+            sendTokenNotFoundMessage(player);
             return 1;
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        if (token.isEmpty())
-        {
-            sendTokenNotFoundMessage(context.getSource().getPlayer());
+        if (token.isEmpty()) {
+            sendTokenNotFoundMessage(player);
             return 1;
         }
         var connected = client.connect(token);
         if (connected)
-            context.getSource().getPlayer().sendMessage(getPrefix().append("Successfully connected"));
+            player.sendMessage(getPrefix().append("Successfully connected"), false);
         else
-            context.getSource().getPlayer().sendMessage(getPrefix().append("Failed to connect :(").formatted(Formatting.DARK_RED));
+            player.sendMessage(getPrefix().append("Failed to connect :(").formatted(Formatting.DARK_RED), false);
         return 0;
     }
 
     private int setCommand(CommandContext<FabricClientCommandSource> context) {
         try {
-            var text = new net.minecraft.client.util.Clipboard().getClipboard(0, (e, d) -> context.getSource().getPlayer().sendMessage(getPrefix().append("Unsupported token assignment method... Paste token to the file: ~/" + Constants.TokenFileName)));
+            var text = new net.minecraft.client.util.Clipboard().get(MinecraftClient.getInstance().getWindow(), (e, d) -> context.getSource().getPlayer().sendMessage(getPrefix().append("Unsupported token assignment method... Paste token to the file: ~/" + Constants.TokenFileName), true));
 
             if (text == null || text.trim().length() < 3) {
-                context.getSource().getPlayer().sendMessage(getPrefix().append("The copied text does not look like a token"));
+                context.getSource().getPlayer().sendMessage(getPrefix().append("The copied text does not look like a token"), false);
                 return 1;
             }
 
@@ -156,7 +166,7 @@ public class ClientEntryPoint implements ClientModInitializer {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        context.getSource().getPlayer().sendMessage(getPrefix().append("The token is set"));
+        context.getSource().getPlayer().sendMessage(getPrefix().append("The token is set"), false);
         return 0;
     }
 
@@ -165,9 +175,9 @@ public class ClientEntryPoint implements ClientModInitializer {
                 .append("Token not found. ")
                 .append(Text
                         .literal("Learn more")
-                        .setStyle(Style.EMPTY.withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, Constants.GuideToSetToken)))
+                        .setStyle(Style.EMPTY.withClickEvent(new ClickEvent.OpenUrl(URI.create(Constants.GuideToSetToken))))
                         .formatted(Formatting.AQUA)
-                )
+                ), false
         );
     }
 
@@ -180,17 +190,17 @@ public class ClientEntryPoint implements ClientModInitializer {
                 )
                 .append(Text.literal(". "))
                 .append(Text.literal("Click to open")
-                        .setStyle(Style.EMPTY.withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_FILE, "donation-alerts-integrate/settings.yaml")))
+                        .setStyle(Style.EMPTY.withClickEvent(new ClickEvent.OpenFile("donation-alerts-integrate/settings.yaml")))
                         .formatted(Formatting.AQUA)
-                )
+                ), false
         );
         player.sendMessage(getPrefix()
                 .append("Click ")
                 .append(Text.literal("here")
-                        .setStyle(Style.EMPTY.withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, Constants.GuideToConfiguration)))
+                        .setStyle(Style.EMPTY.withClickEvent(new ClickEvent.OpenUrl(URI.create(Constants.GuideToConfiguration))))
                         .formatted(Formatting.AQUA)
                 )
-                .append(" to open manual")
+                .append(" to open manual"), false
         );
     }
 

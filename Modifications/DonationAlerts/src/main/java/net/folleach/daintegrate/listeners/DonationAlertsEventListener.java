@@ -14,9 +14,11 @@ public class DonationAlertsEventListener implements IListener<DonationAlertsEven
     @Override
     public void onValue(DonationAlertsEvent value) {
         var readOnly = new ReadOnlyDonationAlertsEvent(value);
+
         DonationAlertsIntegrate.getEventListeners().forEachRemaining(listener -> {
             listener.onValue(readOnly);
         });
+
         processor.onValue(readOnly);
     }
 }

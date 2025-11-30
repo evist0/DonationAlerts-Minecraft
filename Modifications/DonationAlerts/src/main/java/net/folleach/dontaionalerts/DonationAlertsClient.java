@@ -11,46 +11,58 @@ import org.json.JSONObject;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.HashSet;
+import java.util.Set;
 
 public class DonationAlertsClient {
+    private final Set<Integer> processedIds = new HashSet<>();
+    private static final int MAX_PROCESSED_IDS = 1000; // Ограничиваем размер множества
+
     private static final Gson gson = new GsonBuilder()
             .setDateFormat("yyyy-MM-dd HH:mm:ss")
             .create();
 
     private final Socket socket;
-    private final URI url;
     private String currentToken;
 
-    private final Emitter.Listener connectListener;
-    private final Emitter.Listener disconnectListener;
-    private final Emitter.Listener donationListener;
-    private final Emitter.Listener errorListener;
-
     public DonationAlertsClient(String server, IListener<DonationAlertsEvent> eventListener) throws URISyntaxException {
-        url = new URI(server);
+        System.out.print("New DonationAlertsClient");
+
+        URI url = new URI(server);
+
         socket = IO.socket(url);
 
-        connectListener = arg -> {
-            System.out.println("connect");
-        };
+        Emitter.Listener connectListener = arg -> System.out.println("connect");
 
-        disconnectListener = arg -> {
-            System.out.println("disconnect");
-        };
+        Emitter.Listener disconnectListener = arg -> System.out.println("disconnect");
 
-        donationListener = arg -> {
-            if (arg.length < 1)
-                return;
+        Emitter.Listener donationListener = arg -> {
+            if (arg.length < 1) return;
             var json = arg[0];
-            if (!(json instanceof String))
+            if (!(json instanceof String jsonString)) return;
+
+            System.out.println("Received event: " + jsonString);
+
+            DonationAlertsEvent event = gson.fromJson(jsonString, DonationAlertsEvent.class);
+
+            if (processedIds.contains(event.ID)) {
+                System.out.println("🔄 Skipping duplicate event ID: " + event.ID);
                 return;
-            DonationAlertsEvent event = gson.fromJson((String)json, DonationAlertsEvent.class);
+            }
+
+            if (processedIds.size() > MAX_PROCESSED_IDS) {
+                processedIds.clear();
+                System.out.println("🧹 Cleaned processed IDs cache");
+            }
+
+            processedIds.add(event.ID);
+
+            System.out.println("✅ Processing event ID: " + event.ID);
+
             eventListener.onValue(event);
         };
 
-        errorListener = arg -> {
-            System.out.println("error");
-        };
+        Emitter.Listener errorListener = arg -> System.out.println("error");
 
         socket.on(Socket.EVENT_CONNECT, connectListener)
                 .on(Socket.EVENT_DISCONNECT, disconnectListener)

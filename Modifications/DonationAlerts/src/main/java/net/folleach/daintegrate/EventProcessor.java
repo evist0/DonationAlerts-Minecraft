@@ -19,6 +19,7 @@ public class EventProcessor implements IListener<ReadOnlyDonationAlertsEvent> {
     @Override
     public void onValue(ReadOnlyDonationAlertsEvent value) {
         var timeSnapshot = currentTime;
+
         getSenseTrigger(value).forEach(trigger -> {
             System.out.println("Activate trigger: " + trigger.name);
             for (var handler : trigger.handlers) {
@@ -47,12 +48,14 @@ public class EventProcessor implements IListener<ReadOnlyDonationAlertsEvent> {
         return DonationAlertsIntegrate.getTriggers().filter(trigger -> {
             if (!trigger.isActive)
                 return false;
+
             for (var sensitive : trigger.sensitives) {
                 var sensitiveDescriptor = DonationAlertsIntegrate.getSensitive(sensitive.properties.type);
                 var isSense = sensitiveDescriptor.getSensitive().isActive(event, sensitive.properties.value);
                 if (isSense)
                     return true;
             }
+
             return false;
         });
     }
